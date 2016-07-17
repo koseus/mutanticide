@@ -7,10 +7,14 @@ import org.objectweb.asm.tree.*;
 import static org.objectweb.asm.Opcodes.*;
 
 public class ClassTraverser extends ClassNode{
+	final String className;
+	
 	public static ArrayList<Field> volatileFields = new ArrayList<Field>();
 
+	// To generate RSB, EXCR, SKCR, SHCR, SPCR mutants
 	public static ArrayList<SynchronizedBlock> syncBlocks = new ArrayList<SynchronizedBlock>();
-
+	
+	// Method invocation lines
 	public static ArrayList<MethodXLine> methodJoin = new ArrayList<MethodXLine>();
 	public static ArrayList<MethodXLine> methodWait = new ArrayList<MethodXLine>();
 	public static ArrayList<MethodXLine> methodSleep = new ArrayList<MethodXLine>();
@@ -19,18 +23,57 @@ public class ClassTraverser extends ClassNode{
 	public static ArrayList<MethodXLine> methodNotify = new ArrayList<MethodXLine>();
 	public static ArrayList<MethodXLine> methodNotifyAll = new ArrayList<MethodXLine>();
 
+	// To generate RSK and and ASK mutants
 	public static ArrayList<MethodBeginLine> staticMethods = new ArrayList<MethodBeginLine>();
 	public static ArrayList<MethodBeginLine> nonStaticMethods = new ArrayList<MethodBeginLine>();
 
+	// To generate RSTK and ASTK mutants
 	public static ArrayList<MethodBeginLine> synchronizedMethods = new ArrayList<MethodBeginLine>();
 	public static ArrayList<MethodBeginLine> nonSynchronizedMethods = new ArrayList<MethodBeginLine>();
 
-	public ClassTraverser(){
+	public ClassTraverser(String className){
 		super(ASM5);
+		
+		this.className = className;
 	}
 
 	public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions){
-		return new MethodInvocations(name);
+//		System.out.println(name);
+//		System.out.println(access);
+		
+		boolean isStatic = false;
+		boolean isSynchronized = false;
+		
+		String accessString = Integer.toBinaryString(access);
+		
+		if(accessString.length() >= 4){
+			if(accessString.substring(
+					accessString.length() - 4, accessString.length() - 3).equals("1")){
+				isStatic = true;
+			}
+		}
+		
+		if(accessString.length() >= 6){
+			if(accessString.substring(
+					accessString.length() - 6, accessString.length() - 5).equals("1")){
+				isSynchronized = true;
+			}
+		}
+		
+		if(isStatic){
+			staticMethods.add(new MethodBeginLine(className, name));
+		}else{
+			nonStaticMethods.add(new MethodBeginLine(className, name));
+		}
+		
+		if(isSynchronized){
+			synchronizedMethods.add(new MethodBeginLine(className, name));
+		}else{
+			nonSynchronizedMethods.add(new MethodBeginLine(className, name));
+		}
+		
+		
+		return new MethodExplorer(this.name, name);
 	}
 
 	public FieldVisitor visitField(int access, String name, String desc, String signature, Object value){
@@ -39,50 +82,83 @@ public class ClassTraverser extends ClassNode{
 
 		if(accessString.length() >= 7){
 			if(accessString.substring(accessString.length() - 7, accessString.length() - 6).equals("1")){
-//				System.out.println(name);
 
-				volatileFields.add(new Field(name));
+				volatileFields.add(new Field(className, name));
 			}
 		}
-
-
 		return super.visitField(access, name, desc, signature, value);
 	}
 
 
-	class MethodInvocations extends MethodVisitor{
-		private String methodName;
-		private int lineNumber;
+	class MethodExplorer extends MethodNode{
+		String className;
+		String methodName;
 
-		public MethodInvocations(String name){
+		public MethodExplorer(String className, String name){
 			super(ASM5);
 
+			this.className = className;
 			methodName = name;
 		}
-
-		// record which method is called on which line
-		public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf){
-        	if(name.equals("join")){
-        		methodJoin.add(new MethodXLine(name, this.lineNumber));
-        	}else if(name.equals("wait")){
-        		methodWait.add(new MethodXLine(name, this.lineNumber));
-        	}else if(name.equals("sleep")){
-        		methodSleep.add(new MethodXLine(name, this.lineNumber));
-        	}else if(name.equals("await")){
-        		methodAwait.add(new MethodXLine(name, this.lineNumber));
-        	}else if(name.equals("yield")){
-        		methodYield.add(new MethodXLine(name, this.lineNumber));
-        	}else if(name.equals("notify")){
-        		methodNotify.add(new MethodXLine(name, this.lineNumber));
-        	}else if(name.equals("notifyAll")){
-        		methodNotifyAll.add(new MethodXLine(name, this.lineNumber));
-        	}
-        }
+		
+		public void visitEnd(){
+			int lineNumber = 0;
+			
+			for(int i = 0; i < this.instructions.size(); i++){
+				AbstractInsnNode currentInsn = this.instructions.get(i);
+				
+				if(currentInsn.getType() == 15){
+					LineNumberNode lnn = (LineNumberNode) currentInsn;
+					lineNumber = lnn.line;
+				}else if(currentInsn.getType() == 0){
+					InsnNode in = (InsnNode) currentInsn;
+					
+					if(in.getOpcode() == Opcodes.MONITORENTER){
+						syncBlocks.add(new SynchronizedBlock(className, methodName, lineNumber));
+					}
+				}else if(currentInsn.getType() == 5){
+					MethodInsnNode min = (MethodInsnNode) currentInsn;
+					
+					switch(min.name){
+					case "wait":
+						methodWait.add(new MethodXLine(className, methodName, lineNumber));
+						break;
+					case "await":
+						methodAwait.add(new MethodXLine(className, methodName, lineNumber));
+						break;
+					case "join":
+						methodJoin.add(new MethodXLine(className, methodName, lineNumber));
+						break;
+					case "sleep":
+						methodSleep.add(new MethodXLine(className, methodName, lineNumber));
+						break;
+					case "yield":
+						methodYield.add(new MethodXLine(className, methodName, lineNumber));
+						break;
+					case "notify":
+						methodNotify.add(new MethodXLine(className, methodName, lineNumber));
+						break;
+					case "notifyAll":
+						methodNotifyAll.add(new MethodXLine(className, methodName, lineNumber));
+						break;
+					}
+				}
+			}
+		}
+		
+		
+		public void visitLocalVariable(String name, String desc, String signature, Label start, Label end, int index){
+//			super.visitLocalVariable(name, desc, signature, start, end, index);
+		}
+		
+		public void visitTryCatchBlock(Label start, Label end, Label handler, String type){
+//			super.visitTryCatchBlock(start, end, handler, type);
+		}
 	}
 
 	class MethodDeclarations extends MethodVisitor{
-		private String methodName;
-		private int lineNumber;
+		String methodName;
+		int lineNumber;
 
 		public MethodDeclarations(String name){
 			super(ASM5);
@@ -90,73 +166,50 @@ public class ClassTraverser extends ClassNode{
 			methodName = name;
 		}
 	}
-
 }
 
 class Field {
+	final String className;
 	final String fieldName;
 
-	public Field(String name){
+	public Field(String className, String name){
+		this.className = className;
 		fieldName = name;
 	}
 }
 
 
 class MethodXLine {
-	private final String methodName;
-	private final int lineNumber;
+	final String className;
+	final String methodName;
+	final int lineNumber;
 
-	public MethodXLine(String name, int line){
-		methodName = name;
+	public MethodXLine(String className, String method, int line){
+		this.className = className;
+		methodName = method;
 		lineNumber = line;
-	}
-
-	public String getMethodName(){
-		return methodName;
-	}
-
-	public int getLineNumber(){
-		return lineNumber;
 	}
 }
 
 
 class SynchronizedBlock {
-	private final String methodName;
-	private final int lineNumber;
+	final String className;
+	final String methodName;
+	final int lineNumber;
 
-	public SynchronizedBlock(String name, int line){
+	public SynchronizedBlock(String className, String name, int line){
+		this.className = className;
 		methodName = name;
 		lineNumber = line;
-	}
-
-	public String getMethodName(){
-		return methodName;
-	}
-
-	public int getLineNumber(){
-		return lineNumber;
 	}
 }
 
 class MethodBeginLine {
-	private final String methodName;
-	private int beginLine;
+	final String className;
+	final String methodName;
 
-	public MethodBeginLine(String name, int line){
-		methodName = name;
-		beginLine = line;
-	}
-
-	public String getMethodName(){
-		return methodName;
-	}
-
-	public int getBeginLine(){
-		return beginLine;
-	}
-
-	public void setBeginLine(int line){
-		beginLine = line;
+	public MethodBeginLine(String name, String method){
+		className = name;
+		methodName = method;
 	}
 }

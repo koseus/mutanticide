@@ -1,23 +1,73 @@
 
 public class Test extends Thread{
 
+	volatile int x = 1;
+	static int count;
+	
 	public void run(){
-		System.out.println("Statement 1");
-
+		++count;
+		
+		System.out.println("Statement 1" + this.getName());
+		
 		synchronized (this) {
-			System.out.println("Statement 2");
-			System.out.println("Statement 3");
-			System.out.println("Statement 4");
-			System.out.println("Statement 5");
+			System.out.println("Statement 2" + this.getName());
+			System.out.println("Statement 3" + this.getName());
+			System.out.println("Statement 4" + this.getName());
+			System.out.println("Statement 5" + this.getName());
 		}
-
-		System.out.println("Statement 6");
+		
+		System.out.println("Statement 6" + this.getName());
+		
+//		myMethod();
 	}
-
-	public static void main(String[] args) {
-		Test test = new Test();
-
-		test.start();
+	
+	synchronized void myMethod(){
+		long time = 5000;
+		try {
+			wait(time);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
+		System.out.println("End");
+	}
+	
+	public static void main(String[] args) throws InterruptedException {
+		long time = 5000;
+		
+		Test.count = 0;
+		
+		Test test1 = new Test();
+		Test test2 = new Test();
+		Test test3 = new Test();
+		
+		test1.start();
+		
+		
+//		try {
+//			test1.wait(time);
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+		
+		test2.start();
+		
+//		try {
+//			test2.wait(time);
+//		} catch (InterruptedException e) {
+//			e.printStackTrace();
+//		}
+		
+		
+		test3.start();
+		
+	}
+	
+	public void x(){
+		int x = 5;
+		
+		x = x - 5;
+		
 	}
 
 }
