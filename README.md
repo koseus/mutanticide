@@ -17,6 +17,7 @@ After these definitions are saved, run the script on a bash terminal. Every clas
 After the script terminates, mutation score can be computed. When in REPORT_PATH, run the following commands:
 
 ll | wc -l
+
 grep -L "DEAD" *
 
 The first command gives mutant count (call this M), the second gives living mutant count (call this L). Mutation score can be computed by (M - L) / M.
