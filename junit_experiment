@@ -3,6 +3,8 @@ BACKUP_BENCHMARK="/Users/mkose/Dropbox/workspace/junit-master"
 TEMP_BENCHMARK="/Users/mkose/temp/junit-master"
 LAB_PATH="/Users/mkose/Dropbox/workspace/Mutanticide"
 REPORT_PATH="/Users/mkose/results"
+ASM_PATH="/Users/mkose/Library/asm-5.0.4/lib/asm-5.0.4.jar:/Users/mkose/Library/asm-5.0.4/lib/asm-tree-5.0.4.jar"
+
 
 # Depth 1
 for f in $BACKUP_BENCHMARK/bin/*.class
@@ -162,7 +164,7 @@ do
   echo $fileName
 
   # Create mutants
-  java -cp .:/Users/mkose/Library/asm-5.0.4/lib/asm-5.0.4.jar:/Users/mkose/Library/asm-5.0.4/lib/asm-tree-5.0.4.jar Main $fileName
+  java -cp .:$ASM_PATH Main $fileName
 
   # For each mutant created
   cd out
