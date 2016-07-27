@@ -1,3 +1,7 @@
+Tested with ASM 5.0.4 on the following machindes:
+1- Running OS X El Capitan 10.11.6 and JDK 1.8.0-60.
+2- Running Ubuntu Desktop 12.04 and JDK 
+
 To apply mutation testing, create a bash script or edit one of the existing scripts.
 
 At the top of a script, there are directory definitions. These directories are the following:
