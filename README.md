@@ -1,6 +1,6 @@
-Tested with ASM 5.0.4 on the following machindes:
-1- Running OS X El Capitan 10.11.6 and JDK 1.8.0-60.
-2- Running Ubuntu Desktop 12.04 and JDK 
+Tested with ASM 5.0.4 on a machine running OS X El Capitan 10.11.6 and JDK 1.8.0-60.
+
+To run on Linux machines, change "gdate" to "date" and "gtimeout" to "timeout" in the scripts.
 
 To apply mutation testing, create a bash script or edit one of the existing scripts.
 
