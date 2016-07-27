@@ -12,6 +12,8 @@ REPORT_PATH: folder in which reports will be created
 
 CLASSPATH: classes to include for successful test execution. If there are more than one, they must be sepearated by a semicolon.
 
+ASM_PATH: path to ASM packages
+
 After these definitions are saved, run the script on a bash terminal. Every class in the SUT will be passed to Mutanticide for mutant generation. Then, each mutant is tested against the test suite, and a report file is created for it under REPORT_PATH.
 
 After the script terminates, mutation score can be computed. When in REPORT_PATH, run the following commands:
