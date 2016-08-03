@@ -1,0 +1,144 @@
+BACKUP_BENCHMARK="/Users/mkose/backup/bubblesort2/classes"
+TEMP_BENCHMARK="/Users/mkose/temp/bubblesort2/classes"
+LAB_PATH="/Users/mkose/Dropbox/workspace/Mutanticide"
+REPORT_PATH="/Users/mkose/bubblesort-results"
+CLASSPATH="/Users/mkose/Library/junit-4.12.jar:/Users/mkose/Library/hamcrest-core-1.3.jar"
+
+# Depth 1
+for f in $BACKUP_BENCHMARK/*.class
+do
+  #FILELIST[length_of_FILELIST + 1]=filename
+  FILELIST[${#FILELIST[@]}+1]=$(echo "$f");
+done
+
+# Depth 2
+for f in $BACKUP_BENCHMARK/*/*.class
+do
+  #FILELIST[length_of_FILELIST + 1]=filename
+  FILELIST[${#FILELIST[@]}+1]=$(echo "$f");
+done
+
+# Depth 3
+for f in $BACKUP_BENCHMARK/*/*/*.class
+do
+  #FILELIST[length_of_FILELIST + 1]=filename
+  FILELIST[${#FILELIST[@]}+1]=$(echo "$f");
+done
+
+# Depth 4
+for f in $BACKUP_BENCHMARK/*/*/*/*.class
+do
+  #FILELIST[length_of_FILELIST + 1]=filename
+  FILELIST[${#FILELIST[@]}+1]=$(echo "$f");
+done
+
+counter=1
+
+for f in ${FILELIST[@]}
+do
+  fileName=$(basename $f)
+  echo $f
+
+  # Remove *.class files
+  if [[ $fileName == "*.class" ]]; then
+    unset FILELIST[$counter]
+
+  elif [[ $fileName == *"Abstract"* ]]; then
+    unset FILELIST[$counter]
+
+  # Remove internal classes
+  elif [[ $fileName == *"$"* ]]; then
+    unset FILELIST[$counter]
+
+  # Remove test classes
+  elif [[ $f == *"test"* ]]; then
+    unset FILELIST[$counter]
+#    TESTS_TO_RUN[$testCounter]=$f
+#    ((testCounter+=1))
+
+  elif [[ $fileName == *"Test.class" ]]; then
+    unset FILELIST[$counter]
+#    TESTS_TO_RUN[$testCounter]=$f
+#    ((testCounter+=1))
+  fi
+
+  ((counter+=1))
+done
+
+# Purge filelist into classes_to_mutate and remove $BACKUP_BENCHMARK prefix
+counter=1
+prefix=$BACKUP_BENCHMARK/
+for f in ${FILELIST[@]}
+do
+  if [ -n $f ]; then
+    CLASSES_TO_MUTATE[$counter]=${f#$prefix}
+    ((counter+=1))
+  fi
+done
+
+printf "%d%s\n" ${#CLASSES_TO_MUTATE[@]} " classes to mutate"
+printf "%s\n" ${CLASSES_TO_MUTATE[@]}
+
+#exit
+
+counter=1
+for class in ${CLASSES_TO_MUTATE[@]}
+do
+  # Extract the file name
+  fileName=$(basename $class .class)
+  echo "CLASS " $fileName
+
+  # Copy the next class to mutate to our lab
+  cp $BACKUP_BENCHMARK/$class $LAB_PATH/bin
+  cd $LAB_PATH/bin
+
+  # class = /path/fileName.class
+  echo $class
+  echo $fileName
+
+  # Create mutants
+  java -cp .:/Users/mkose/Library/asm-5.0.4/lib/asm-5.0.4.jar:/Users/mkose/Library/asm-5.0.4/lib/asm-tree-5.0.4.jar Main $fileName
+
+  # For each mutant created
+  cd out
+
+  for dir in */;
+  do
+    # /Users/mkose/Dropbox/workspace/Mutanticide/out/Mutation
+    cd $LAB_PATH/bin/out/$dir
+
+    # Copy the mutant over the original class
+    dirName=$(dirname $TEMP_BENCHMARK/$class)
+    cp $fileName.class $dirName/
+
+    cd $TEMP_BENCHMARK
+    echo Applying mutation $dir on $fileName
+    echo $(gdate +"%H%M%S") >>$REPORT_PATH/$fileName\_${dir%/}.txt
+
+    gtimeout 10s ./run.bat
+
+
+      if [[ $(diff o original) != "" ]]
+      then
+
+        echo "DEAD" >>$REPORT_PATH/$fileName\_${dir%/}.txt
+      else
+
+        echo "ALIVE" >>$REPORT_PATH/$fileName\_${dir%/}.txt
+      fi
+
+    echo $(gdate +"%H%M%S") >>$REPORT_PATH/$fileName\_${dir%/}.txt
+  done
+
+
+  # CLEAN UP
+  # Remove the class from the lab
+  rm $LAB_PATH/bin/$fileName.class
+
+  # Copy the original class back in place
+  dirName=$(dirname $TEMP_BENCHMARK/$class)
+  cp $BACKUP_BENCHMARK/$class $dirName/
+
+  # Remove the mutants
+  rm -fr $LAB_PATH/bin/out/*
+done
